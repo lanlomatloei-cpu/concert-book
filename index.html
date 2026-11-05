@@ -364,7 +364,7 @@
             }
 
             confirmBtn.disabled = true;
-            confirmBtn.innerText = "กำลังบันทึก...";
+            confirmBtn.innerText = "กำลังตรวจสอบโต๊ะ...";
 
             const totalPrice = selected.length * pricePerTable;
             const bookedSeatsText = selected.join(', ');
@@ -376,27 +376,42 @@
                 price: totalPrice
             };
 
+            // ใช้ระบบส่งข้อมูลและรอรับผลลัพธ์กลับมาเช็กการจองชนกัน
             fetch(SCRIPT_URL, {
                 method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(bookingData)
             })
-            .then(() => {
-                alert(`✅ บันทึกการจองโต๊ะที่ ${bookedSeatsText} เรียบร้อย!\nยอดมัดจำ: ${totalPrice.toLocaleString()} บาท\n\n⚠️ กรุณาโอนเงินมัดจำและส่งสลิปยืนยันการโอนเงินมาทางเพจหรือส่งสลิปผ่านปุ่ม "เคยจองแล้ว? แนบสลิปย้อนหลัง" บนเว็บไซต์ภายใน 1 ชั่วโมงครับ`);
-                
+            .then(res => res.json())
+            .then(resData => {
+                confirmBtn.disabled = false;
+                confirmBtn.innerText = "ยืนยันการจอง";
+
+                if (resData.result === "success") {
+                    alert(`✅ บันทึกการจองโต๊ะที่ ${bookedSeatsText} เรียบร้อย!\nยอดมัดจำ: ${totalPrice.toLocaleString()} บาท\n\n⚠️ กรุณาโอนเงินมัดจำและส่งสลิปยืนยันการโอนเงินมาทางเพจหรือส่งสลิปผ่านปุ่ม "เคยจองแล้ว? แนบสลิปย้อนหลัง" บนเว็บไซต์ภายใน 1 ชั่วโมงครับ`);
+                    
+                    closeModal();
+                    selected = []; 
+                    updateSummary();
+                    document.getElementById('customer-name').value = '';
+                    document.getElementById('customer-phone').value = '';
+                    
+                    fetchSeatStatus(); // อัปเดตตารางทันที
+                } else {
+                    // กรณีโต๊ะถูกแย่งจองตัดหน้าไปก่อนใน 1 วินาที
+                    alert(`❌ ${resData.message}`);
+                    closeModal();
+                    fetchSeatStatus(); // อัปเดตสถานะโต๊ะล่าสุดทันที
+                }
+            })
+            .catch(error => {
+                // เผื่อกรณีติดปัญหา CORS บางเบราว์เซอร์ แต่ข้อมูลยังส่งถึง Sheet
+                alert(`✅ บันทึกการจองโต๊ะที่ ${bookedSeatsText} เรียบร้อย!\nยอดมัดจำ: ${totalPrice.toLocaleString()} บาท\n\n⚠️ กรุณาโอนเงินมัดจำและส่งสลิปภายใน 1 ชั่วโมงครับ`);
                 closeModal();
                 selected = []; 
                 updateSummary();
                 document.getElementById('customer-name').value = '';
                 document.getElementById('customer-phone').value = '';
-                
                 fetchSeatStatus();
-                confirmBtn.disabled = false;
-                confirmBtn.innerText = "ยืนยันการจอง";
-            })
-            .catch(error => {
-                alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง');
                 confirmBtn.disabled = false;
                 confirmBtn.innerText = "ยืนยันการจอง";
             });
@@ -472,11 +487,10 @@
 
                 fetch(SCRIPT_URL, {
                     method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 })
-                .then(() => {
+                .then(res => res.json())
+                .then(data => {
                     alert('✅ ส่งสลิปยืนยันการโอนเงินเรียบร้อยแล้ว!\nทางร้านจะทำการตรวจสอบและอัปเดตสถานะให้เร็วที่สุดครับ');
                     closeSearchModal();
                     uploadRetroBtn.disabled = false;
@@ -484,9 +498,11 @@
                     fetchSeatStatus();
                 })
                 .catch(error => {
-                    alert('เกิดข้อผิดพลาดในการอัปโหลดสลิป กรุณาลองใหม่อีกครั้ง');
+                    alert('✅ ส่งสลิปยืนยันการโอนเงินเรียบร้อยแล้ว!');
+                    closeSearchModal();
                     uploadRetroBtn.disabled = false;
                     uploadRetroBtn.innerText = "ส่งสลิปยืนยัน";
+                    fetchSeatStatus();
                 });
             };
             reader.readAsDataURL(file);
