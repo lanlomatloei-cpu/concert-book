@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบจองตั๋วคอนเสิร์ต</title>
+    <title>ระบบจองโต๊ะ</title>
     <style>
         body {
             background-color: #0f172a;
@@ -35,7 +35,7 @@
         #seating-grid {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 10px;
             margin-bottom: 30px;
             overflow-x: auto;
             max-width: 100%;
@@ -44,21 +44,14 @@
         .row-container {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             justify-content: center;
         }
-        .row-label {
-            width: 24px;
-            text-align: center;
-            font-weight: bold;
-            color: #94a3b8;
-            font-size: 14px;
-        }
         .seat {
-            width: 32px;
-            height: 32px;
-            border-radius: 6px 6px 0 0;
-            font-size: 12px;
+            width: 45px;
+            height: 40px;
+            border-radius: 6px;
+            font-size: 14px;
             font-weight: bold;
             display: flex;
             align-items: center;
@@ -113,7 +106,6 @@
         .book-btn:hover:not(:disabled) { background-color: #4338ca; }
         .book-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* สไตล์หน้าต่างป๊อปอัป (Modal) */
         .modal-overlay {
             display: none;
             position: fixed;
@@ -150,6 +142,7 @@
         .btn-group { display: flex; gap: 10px; margin-top: 20px; }
         .btn-submit { background-color: #22c55e; color: white; border: none; padding: 10px; border-radius: 6px; flex: 1; font-weight: bold; cursor: pointer; }
         .btn-submit:hover { background-color: #16a34a; }
+        .btn-submit:disabled { background-color: #475569; cursor: wait; }
         .btn-cancel { background-color: #64748b; color: white; border: none; padding: 10px; border-radius: 6px; flex: 1; font-weight: bold; cursor: pointer; }
         .btn-cancel:hover { background-color: #475569; }
     </style>
@@ -157,26 +150,25 @@
 <body>
 
     <header style="text-align: center; margin-bottom: 20px;">
-        <h1>🎟️ ระบบจองตั๋วคอนเสิร์ต</h1>
-        <p>เลือกที่นั่ง 10 แถว (A-J) แถวละ 11 ที่นั่ง</p>
+        <h1>🍻 ระบบจองโต๊ะ</h1>
+        <p>เลือกโต๊ะที่ต้องการ (เรียงตามหมายเลข)</p>
     </header>
 
-    <div class="stage">STAGE / เวที</div>
+    <div class="stage">STAGE / เวที / หน้าเวที</div>
 
     <div id="seating-grid"></div>
 
     <div class="summary-box">
-        <p>ที่นั่งที่เลือก: <span id="selected-seats" class="highlight-seats">ยังไม่ได้เลือก</span></p>
-        <p>ราคารวม: <span id="total-price" class="highlight-price">0</span> บาท</p>
-        <button id="book-btn" class="book-btn" disabled>จองที่นั่งที่เลือก</button>
+        <p>โต๊ะที่เลือก: <span id="selected-seats" class="highlight-seats">ยังไม่ได้เลือก</span></p>
+        <p>ยอดรวมมัดจำ/ค่าโต๊ะ: <span id="total-price" class="highlight-price">0</span> บาท</p>
+        <button id="book-btn" class="book-btn" disabled>จองโต๊ะที่เลือก</button>
     </div>
 
-    <!-- หน้าต่างป๊อปอัปกรอกข้อมูล -->
     <div id="booking-modal" class="modal-overlay">
         <div class="modal-content">
-            <h3>📝 ข้อมูลการจอง</h3>
+            <h3>📝 ข้อมูลการจองโต๊ะ</h3>
             <div class="form-group">
-                <label>ที่นั่ง/โต๊ะที่เลือก:</label>
+                <label>โต๊ะที่เลือก:</label>
                 <input type="text" id="modal-seat-id" readonly style="background-color: #334155; color: #facc15; font-weight: bold;">
             </div>
             <div class="form-group">
@@ -189,64 +181,69 @@
             </div>
             <div class="btn-group">
                 <button type="button" class="btn-cancel" onclick="closeModal()">ยกเลิก</button>
-                <button type="button" class="btn-submit" onclick="confirmBooking()">ยืนยันการจอง</button>
+                <button type="button" id="confirm-btn" class="btn-submit" onclick="confirmBooking()">ยืนยันการจอง</button>
             </div>
         </div>
     </div>
 
     <script>
+        // *** ใส่ URL ของ Google Apps Script ของคุณที่นี่ ***
+        const SCRIPT_URL = "วาง_WEB_APP_URL_ตรงนี้";
+
         const grid = document.getElementById('seating-grid');
         const selectedSeatsEl = document.getElementById('selected-seats');
         const totalPriceEl = document.getElementById('total-price');
         const bookBtn = document.getElementById('book-btn');
         const modal = document.getElementById('booking-modal');
         const modalSeatId = document.getElementById('modal-seat-id');
+        const confirmBtn = document.getElementById('confirm-btn');
 
-        const rows = 10;
-        const cols = 11;
-        const rowLabels = ['A','B','C','D','E','F','G','H','I','J'];
+        const totalTables = 40;  // จำนวนโต๊ะทั้งหมด (สามารถปรับเปลี่ยนได้ตามต้องการ เช่น 50, 60)
+        const colsPerRow = 10;   // จำนวนโต๊ะต่อ 1 แถวในหน้าจอ
         let selected = [];
 
-        for (let r = 0; r < rows; r++) {
-            const rowDiv = document.createElement('div');
-            rowDiv.className = 'row-container';
+        // สร้างตารางโต๊ะเรียงหมายเลข 1, 2, 3...
+        let rowDiv = document.createElement('div');
+        rowDiv.className = 'row-container';
+
+        for (let i = 1; i <= totalTables; i++) {
+            const seatId = i.toString(); // แปลงเป็นเลขโต๊ะ เช่น "1", "2", "3"
+            const seat = document.createElement('button');
             
-            const label = document.createElement('span');
-            label.className = 'row-label';
-            label.innerText = rowLabels[r];
-            rowDiv.appendChild(label);
+            // สุ่มจำลองสถานะโต๊ะเต็มบางโต๊ะ (ถ้าต้องการให้ว่างทั้งหมด ให้เอาบรรทัด isBooked ออกได้ครับ)
+            const isBooked = false; 
+            
+            seat.className = `seat ${isBooked ? 'booked' : ''}`;
+            seat.innerText = i;
+            seat.disabled = isBooked;
 
-            for (let c = 1; c <= cols; c++) {
-                const seatId = `${rowLabels[r]}${c}`;
-                const seat = document.createElement('button');
-                
-                const isBooked = Math.random() < 0.15;
-                
-                seat.className = `seat ${isBooked ? 'booked' : ''}`;
-                seat.innerText = c;
-                seat.disabled = isBooked;
-
-                if (!isBooked) {
-                    seat.onclick = () => {
-                        if (selected.includes(seatId)) {
-                            selected = selected.filter(s => s !== seatId);
-                            seat.classList.remove('selected');
-                        } else {
-                            selected.push(seatId);
-                            seat.classList.add('selected');
-                        }
-                        updateSummary();
-                    };
-                }
-                rowDiv.appendChild(seat);
+            if (!isBooked) {
+                seat.onclick = () => {
+                    if (selected.includes(seatId)) {
+                        selected = selected.filter(s => s !== seatId);
+                        seat.classList.remove('selected');
+                    } else {
+                        selected.push(seatId);
+                        seat.classList.add('selected');
+                    }
+                    updateSummary();
+                };
             }
-            grid.appendChild(rowDiv);
+            rowDiv.appendChild(seat);
+
+            // ขึ้นแถวใหม่ทุกๆ ครบจำนวนโต๊ะต่อแถว
+            if (i % colsPerRow === 0 && i < totalTables) {
+                grid.appendChild(rowDiv);
+                rowDiv = document.createElement('div');
+                rowDiv.className = 'row-container';
+            }
         }
+        grid.appendChild(rowDiv);
 
         function updateSummary() {
             if (selected.length > 0) {
                 selectedSeatsEl.innerText = selected.join(', ');
-                totalPriceEl.innerText = (selected.length * 1500).toLocaleString();
+                totalPriceEl.innerText = (selected.length * 500).toLocaleString(); // ราคาต่อโต๊ะ (ปรับเปลี่ยนได้)
                 bookBtn.disabled = false;
             } else {
                 selectedSeatsEl.innerText = 'ยังไม่ได้เลือก';
@@ -273,10 +270,32 @@
                 return;
             }
 
-            alert(`✅ ยืนยันการจองเรียบร้อย!\n\nที่นั่ง: ${selected.join(', ')}\nชื่อผู้จอง: ${name}\nเบอร์โทร: ${phone}\nราคารวม: ${(selected.length * 1500).toLocaleString()} บาท`);
-            
-            closeModal();
-            location.reload();
+            confirmBtn.disabled = true;
+            confirmBtn.innerText = "กำลังบันทึก...";
+
+            const bookingData = {
+                seats: selected,
+                name: name,
+                phone: phone,
+                price: selected.length * 500
+            };
+
+            fetch(SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bookingData)
+            })
+            .then(() => {
+                alert(`✅ จองโต๊ะสำเร็จ!\n\nข้อมูลถูกบันทึกลง Google Sheets แล้วครับ`);
+                closeModal();
+                location.reload();
+            })
+            .catch(error => {
+                alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง');
+                confirmBtn.disabled = false;
+                confirmBtn.innerText = "ยืนยันการจอง";
+            });
         }
     </script>
 </body>
