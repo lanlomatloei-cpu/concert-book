@@ -160,7 +160,7 @@
 
     <div class="summary-box">
         <p>โต๊ะที่เลือก: <span id="selected-seats" class="highlight-seats">ยังไม่ได้เลือก</span></p>
-        <p>ยอดรวมมัดจำ/ค่าโต๊ะ: <span id="total-price" class="highlight-price">0</span> บาท</p>
+        <p>ยอดรวมมัดจำ: <span id="total-price" class="highlight-price">0</span> บาท</p>
         <button id="book-btn" class="book-btn" disabled>จองโต๊ะที่เลือก</button>
     </div>
 
@@ -198,19 +198,16 @@
         const modalSeatId = document.getElementById('modal-seat-id');
         const confirmBtn = document.getElementById('confirm-btn');
 
-        const totalTables = 40;  // จำนวนโต๊ะทั้งหมด (สามารถปรับเปลี่ยนได้ตามต้องการ เช่น 50, 60)
-        const colsPerRow = 10;   // จำนวนโต๊ะต่อ 1 แถวในหน้าจอ
+        const totalTables = 40;  
+        const colsPerRow = 10;   
         let selected = [];
 
-        // สร้างตารางโต๊ะเรียงหมายเลข 1, 2, 3...
         let rowDiv = document.createElement('div');
         rowDiv.className = 'row-container';
 
         for (let i = 1; i <= totalTables; i++) {
-            const seatId = i.toString(); // แปลงเป็นเลขโต๊ะ เช่น "1", "2", "3"
+            const seatId = i.toString(); 
             const seat = document.createElement('button');
-            
-            // สุ่มจำลองสถานะโต๊ะเต็มบางโต๊ะ (ถ้าต้องการให้ว่างทั้งหมด ให้เอาบรรทัด isBooked ออกได้ครับ)
             const isBooked = false; 
             
             seat.className = `seat ${isBooked ? 'booked' : ''}`;
@@ -231,7 +228,6 @@
             }
             rowDiv.appendChild(seat);
 
-            // ขึ้นแถวใหม่ทุกๆ ครบจำนวนโต๊ะต่อแถว
             if (i % colsPerRow === 0 && i < totalTables) {
                 grid.appendChild(rowDiv);
                 rowDiv = document.createElement('div');
@@ -243,7 +239,7 @@
         function updateSummary() {
             if (selected.length > 0) {
                 selectedSeatsEl.innerText = selected.join(', ');
-                totalPriceEl.innerText = (selected.length * 500).toLocaleString(); // ราคาต่อโต๊ะ (ปรับเปลี่ยนได้)
+                totalPriceEl.innerText = (selected.length * 500).toLocaleString(); 
                 bookBtn.disabled = false;
             } else {
                 selectedSeatsEl.innerText = 'ยังไม่ได้เลือก';
@@ -287,7 +283,8 @@
                 body: JSON.stringify(bookingData)
             })
             .then(() => {
-                alert(`✅ จองโต๊ะสำเร็จ!\n\nข้อมูลถูกบันทึกลง Google Sheets แล้วครับ`);
+                // แจ้งเตือนลูกค้าให้ส่งสลิปภายใน 1 ชั่วโมงหลังจากจองสำเร็จ
+                alert(`✅ บันทึกการจองโต๊ะที่ ${selected.join(', ')} เรียบร้อย!\n\n⚠️ กรุณาโอนเงินมัดจำและแนบสลิปยืนยันภายใน 1 ชั่วโมง\n(สามารถส่งสลิปหลักฐานทาง Inbox เพจร้าน หรือช่องทางที่ร้านกำหนดได้เลยครับ)`);
                 closeModal();
                 location.reload();
             })
