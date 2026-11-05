@@ -156,7 +156,9 @@
 
     <div class="stage">STAGE / เวที / หน้าเวที</div>
 
-    <div id="seating-grid"></div>
+    <div id="seating-grid">
+        <p style="color: #94a3b8; text-align: center; width: 100%;">กำลังโหลดสถานะโต๊ะ...</p>
+    </div>
 
     <div class="summary-box">
         <p>โต๊ะที่เลือก: <span id="selected-seats" class="highlight-seats">ยังไม่ได้เลือก</span></p>
@@ -204,42 +206,60 @@
 
         const totalTables = 40;  
         const colsPerRow = 10;   
-        const pricePerTable = 500; // ราคาต่อโต๊ะ (ปรับเปลี่ยนได้)
+        const pricePerTable = 500; 
         let selected = [];
 
-        let rowDiv = document.createElement('div');
-        rowDiv.className = 'row-container';
+        // โหลดข้อมูลสถานะโต๊ะจาก Google Sheets เมื่อเปิดหน้าเว็บ
+        window.onload = function() {
+            fetch(SCRIPT_URL)
+                .then(response => response.json())
+                .then(bookedTables => {
+                    renderGrid(bookedTables);
+                })
+                .catch(error => {
+                    console.error('Error loading seats:', error);
+                    renderGrid([]); // ถ้าโหลดพลาด ให้แสดงแบบปกติก่อน
+                });
+        };
 
-        for (let i = 1; i <= totalTables; i++) {
-            const seatId = i.toString(); 
-            const seat = document.createElement('button');
-            const isBooked = false; 
-            
-            seat.className = `seat ${isBooked ? 'booked' : ''}`;
-            seat.innerText = i;
-            seat.disabled = isBooked;
+        function renderGrid(bookedTables) {
+            grid.innerHTML = ''; // ล้างข้อความกำลังโหลด
+            let rowDiv = document.createElement('div');
+            rowDiv.className = 'row-container';
 
-            if (!isBooked) {
-                seat.onclick = () => {
-                    if (selected.includes(seatId)) {
-                        selected = selected.filter(s => s !== seatId);
-                        seat.classList.remove('selected');
-                    } else {
-                        selected.push(seatId);
-                        seat.classList.add('selected');
-                    }
-                    updateSummary();
-                };
+            for (let i = 1; i <= totalTables; i++) {
+                const seatId = i.toString(); 
+                const seat = document.createElement('button');
+                
+                // เช็กว่าโต๊ะนี้มีชื่ออยู่ในรายการที่ถูกจองแล้วหรือยัง
+                const isBooked = bookedTables.includes(seatId);
+                
+                seat.className = `seat ${isBooked ? 'booked' : ''}`;
+                seat.innerText = i;
+                seat.disabled = isBooked; // ถ้าจองแล้ว จะถูกล็อกกดไม่ได้ทันที
+
+                if (!isBooked) {
+                    seat.onclick = () => {
+                        if (selected.includes(seatId)) {
+                            selected = selected.filter(s => s !== seatId);
+                            seat.classList.remove('selected');
+                        } else {
+                            selected.push(seatId);
+                            seat.classList.add('selected');
+                        }
+                        updateSummary();
+                    };
+                }
+                rowDiv.appendChild(seat);
+
+                if (i % colsPerRow === 0 && i < totalTables) {
+                    grid.appendChild(rowDiv);
+                    rowDiv = document.createElement('div');
+                    rowDiv.className = 'row-container';
+                }
             }
-            rowDiv.appendChild(seat);
-
-            if (i % colsPerRow === 0 && i < totalTables) {
-                grid.appendChild(rowDiv);
-                rowDiv = document.createElement('div');
-                rowDiv.className = 'row-container';
-            }
+            grid.appendChild(rowDiv);
         }
-        grid.appendChild(rowDiv);
 
         function updateSummary() {
             if (selected.length > 0) {
@@ -295,7 +315,7 @@
             .then(() => {
                 alert(`✅ บันทึกการจองโต๊ะที่ ${selected.join(', ')} เรียบร้อย!\nยอดมัดจำ: ${totalPrice.toLocaleString()} บาท\n\n⚠️ กรุณาโอนเงินมัดจำและส่งสลิปยืนยันการโอนเงินมาทางเพจ/ไลน์ของร้านภายใน 1 ชั่วโมงครับ`);
                 closeModal();
-                location.reload();
+                location.reload(); // รีเฟรชหน้าเว็บ เพื่อให้โต๊ะที่เพิ่งจองกลายเป็นสีเทากดไม่ได้ทันที
             })
             .catch(error => {
                 alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง');
