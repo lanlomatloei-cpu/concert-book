@@ -29,14 +29,14 @@
             color: #c7d2fe;
             letter-spacing: 2px;
             font-weight: bold;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             text-transform: uppercase;
         }
         #seating-grid {
             display: flex;
             flex-direction: column;
             gap: 10px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
             overflow-x: auto;
             max-width: 100%;
             padding: 10px;
@@ -86,6 +86,7 @@
             max-width: 400px;
             text-align: center;
             box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            margin-bottom: 15px;
         }
         .summary-box p { color: #cbd5e1; margin: 10px 0; font-size: 16px; }
         .highlight-seats { color: #facc15; font-weight: bold; }
@@ -106,6 +107,21 @@
         .book-btn:hover:not(:disabled) { background-color: #4338ca; }
         .book-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+        .search-slip-btn {
+            background-color: #334155;
+            color: #94a3b8;
+            border: 1px dashed #64748b;
+            padding: 10px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 400px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 30px;
+            transition: 0.2s;
+        }
+        .search-slip-btn:hover { background-color: #1e293b; color: #fff; border-color: #818cf8; }
+
         .modal-overlay {
             display: none;
             position: fixed;
@@ -124,6 +140,8 @@
             max-width: 380px;
             border: 1px solid #475569;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+            max-height: 90vh;
+            overflow-y: auto;
         }
         .modal-content h3 { margin-top: 0; color: #818cf8; text-align: center; }
         .form-group { margin-bottom: 12px; text-align: left; }
@@ -142,7 +160,6 @@
         .btn-group { display: flex; gap: 10px; margin-top: 15px; }
         .btn-submit { background-color: #22c55e; color: white; border: none; padding: 10px; border-radius: 6px; flex: 1; font-weight: bold; cursor: pointer; }
         .btn-submit:hover { background-color: #16a34a; }
-        .btn-submit:disabled { background-color: #475569; cursor: wait; }
         .btn-cancel { background-color: #64748b; color: white; border: none; padding: 10px; border-radius: 6px; flex: 1; font-weight: bold; cursor: pointer; }
         .btn-cancel:hover { background-color: #475569; }
     </style>
@@ -151,7 +168,7 @@
 
     <header style="text-align: center; margin-bottom: 20px;">
         <h1>🍻 ระบบจองโต๊ะ</h1>
-        <p>เลือกโต๊ะที่ต้องการ (เรียงตามหมายเลข)</p>
+        <p>เลือกโต๊ะที่ต้องการ (ระบบอัปเดตสถานะอัตโนมัติ)</p>
     </header>
 
     <div class="stage">STAGE / เวที / หน้าเวที</div>
@@ -166,6 +183,10 @@
         <button id="book-btn" class="book-btn" disabled>จองโต๊ะที่เลือก</button>
     </div>
 
+    <!-- ปุ่มสำหรับลูกค้าที่ต้องการกลับมาแนบสลิปย้อนหลัง -->
+    <button class="search-slip-btn" onclick="openSearchModal()">🔍 เคยจองแล้ว? ค้นหาการจอง / แนบสลิปย้อนหลัง</button>
+
+    <!-- Modal กรอกข้อมูลตอนจอง -->
     <div id="booking-modal" class="modal-overlay">
         <div class="modal-content">
             <h3>📝 รายละเอียดการจอง</h3>
@@ -192,6 +213,30 @@
         </div>
     </div>
 
+    <!-- Modal ค้นหาการจองและแนบสลิปย้อนหลัง -->
+    <div id="search-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>🔍 ค้นหาการจองด้วยเบอร์โทร</h3>
+            <div class="form-group">
+                <label for="search-phone-input">กรอกเบอร์โทรศัพท์ของคุณ:</label>
+                <input type="tel" id="search-phone-input" placeholder="ระบุเบอร์โทรที่ใช้จอง">
+            </div>
+            <button type="button" class="btn-submit" style="width: 100%; margin-bottom: 15px;" onclick="searchBooking()">ค้นหาการจอง</button>
+            
+            <div id="search-result" style="margin-bottom: 15px; font-size: 14px; color: #cbd5e1;"></div>
+
+            <div class="form-group" id="slip-upload-section" style="display: none;">
+                <label for="retro-slip-file">แนบสลิปการโอนเงิน:</label>
+                <input type="file" id="retro-slip-file" accept="image/*" style="background-color: #334155; padding: 6px;">
+            </div>
+
+            <div class="btn-group">
+                <button type="button" class="btn-cancel" onclick="closeSearchModal()">ปิดหน้าต่าง</button>
+                <button type="button" id="upload-retro-btn" class="btn-submit" style="display: none;" onclick="uploadRetroSlip()">ส่งสลิปยืนยัน</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyV6fY_IHi-JbY7TinHiTApQ9icpkA6DHiCnnVjiazBup6YX5dL4KJbxXMyE8D9njYU/exec";
 
@@ -204,13 +249,19 @@
         const modalSeatPrice = document.getElementById('modal-seat-price');
         const confirmBtn = document.getElementById('confirm-btn');
 
+        const searchModal = document.getElementById('search-modal');
+        const searchPhoneInput = document.getElementById('search-phone-input');
+        const searchResult = document.getElementById('search-result');
+        const slipUploadSection = document.getElementById('slip-upload-section');
+        const uploadRetroBtn = document.getElementById('upload-retro-btn');
+
         const totalTables = 40;  
         const colsPerRow = 10;   
         const pricePerTable = 500; 
         let selected = [];
+        let foundPhoneForSlip = "";
 
-        // โหลดข้อมูลสถานะโต๊ะจาก Google Sheets เมื่อเปิดหน้าเว็บ
-        window.onload = function() {
+        function fetchSeatStatus() {
             fetch(SCRIPT_URL)
                 .then(response => response.json())
                 .then(bookedTables => {
@@ -218,25 +269,37 @@
                 })
                 .catch(error => {
                     console.error('Error loading seats:', error);
-                    renderGrid([]); // ถ้าโหลดพลาด ให้แสดงแบบปกติก่อน
                 });
+        }
+
+        window.onload = function() {
+            fetchSeatStatus();
+            setInterval(fetchSeatStatus, 10000);
         };
 
         function renderGrid(bookedTables) {
-            grid.innerHTML = ''; // ล้างข้อความกำลังโหลด
+            const currentGrid = document.getElementById('seating-grid');
+            if (currentGrid.children.length === 0 || currentGrid.querySelector('p')) {
+                grid.innerHTML = ''; 
+            }
+
             let rowDiv = document.createElement('div');
             rowDiv.className = 'row-container';
 
             for (let i = 1; i <= totalTables; i++) {
                 const seatId = i.toString(); 
-                const seat = document.createElement('button');
                 
-                // เช็กว่าโต๊ะนี้มีชื่ออยู่ในรายการที่ถูกจองแล้วหรือยัง
+                let seat = document.getElementById(`seat-${seatId}`);
                 const isBooked = bookedTables.includes(seatId);
+
+                if (!seat) {
+                    seat = document.createElement('button');
+                    seat.id = `seat-${seatId}`;
+                    seat.innerText = i;
+                }
                 
-                seat.className = `seat ${isBooked ? 'booked' : ''}`;
-                seat.innerText = i;
-                seat.disabled = isBooked; // ถ้าจองแล้ว จะถูกล็อกกดไม่ได้ทันที
+                seat.className = `seat ${isBooked ? 'booked' : ''} ${selected.includes(seatId) ? 'selected' : ''}`;
+                seat.disabled = isBooked;
 
                 if (!isBooked) {
                     seat.onclick = () => {
@@ -249,7 +312,13 @@
                         }
                         updateSummary();
                     };
+                } else {
+                    if (selected.includes(seatId)) {
+                        selected = selected.filter(s => s !== seatId);
+                        updateSummary();
+                    }
                 }
+
                 rowDiv.appendChild(seat);
 
                 if (i % colsPerRow === 0 && i < totalTables) {
@@ -298,6 +367,7 @@
             confirmBtn.innerText = "กำลังบันทึก...";
 
             const totalPrice = selected.length * pricePerTable;
+            const bookedSeatsText = selected.join(', ');
 
             const bookingData = {
                 seats: selected,
@@ -313,15 +383,113 @@
                 body: JSON.stringify(bookingData)
             })
             .then(() => {
-                alert(`✅ บันทึกการจองโต๊ะที่ ${selected.join(', ')} เรียบร้อย!\nยอดมัดจำ: ${totalPrice.toLocaleString()} บาท\n\n⚠️ กรุณาโอนเงินมัดจำและส่งสลิปยืนยันการโอนเงินมาทางเพจ/ไลน์ของร้านภายใน 1 ชั่วโมงครับ`);
+                alert(`✅ บันทึกการจองโต๊ะที่ ${bookedSeatsText} เรียบร้อย!\nยอดมัดจำ: ${totalPrice.toLocaleString()} บาท\n\n⚠️ กรุณาโอนเงินมัดจำและส่งสลิปยืนยันการโอนเงินมาทางเพจหรือส่งสลิปผ่านปุ่ม "เคยจองแล้ว? แนบสลิปย้อนหลัง" บนเว็บไซต์ภายใน 1 ชั่วโมงครับ`);
+                
                 closeModal();
-                location.reload(); // รีเฟรชหน้าเว็บ เพื่อให้โต๊ะที่เพิ่งจองกลายเป็นสีเทากดไม่ได้ทันที
+                selected = []; 
+                updateSummary();
+                document.getElementById('customer-name').value = '';
+                document.getElementById('customer-phone').value = '';
+                
+                fetchSeatStatus();
+                confirmBtn.disabled = false;
+                confirmBtn.innerText = "ยืนยันการจอง";
             })
             .catch(error => {
                 alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล กรุณาลองใหม่อีกครั้ง');
                 confirmBtn.disabled = false;
                 confirmBtn.innerText = "ยืนยันการจอง";
             });
+        }
+
+        // ฟังก์ชันเปิด/ปิดหน้าต่างค้นหาและแนบสลิปย้อนหลัง
+        function openSearchModal() {
+            searchPhoneInput.value = '';
+            searchResult.innerHTML = '';
+            slipUploadSection.style.display = 'none';
+            uploadRetroBtn.style.display = 'none';
+            searchModal.style.display = 'flex';
+        }
+
+        function closeSearchModal() {
+            searchModal.style.display = 'none';
+        }
+
+        function searchBooking() {
+            const phone = searchPhoneInput.value.trim();
+            if (!phone) {
+                alert('กรุณากรอกเบอร์โทรศัพท์เพื่อค้นหาครับ');
+                return;
+            }
+
+            searchResult.innerHTML = "กำลังค้นหาข้อมูลการจอง...";
+            slipUploadSection.style.display = 'none';
+            uploadRetroBtn.style.display = 'none';
+
+            fetch(`${SCRIPT_URL}?phone=${encodeURIComponent(phone)}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.length > 0) {
+                        foundPhoneForSlip = phone;
+                        let html = `<b>พบข้อมูลการจองของคุณ:</b><br>`;
+                        data.forEach(item => {
+                            html += `• โต๊ะหมายเลข: <span style="color: #facc15; font-weight: bold;">${item.table}</span> (สถานะ: ${item.status})<br>`;
+                        });
+                        searchResult.innerHTML = html;
+                        slipUploadSection.style.display = 'block';
+                        uploadRetroBtn.style.display = 'block';
+                    } else {
+                        searchResult.innerHTML = `<span style="color: #ef4444;">❌ไม่พบข้อมูลการจองที่ใช้เบอร์โทรนี้ หรืออาจจะถูกยกเลิกไปแล้ว</span>`;
+                    }
+                })
+                .catch(err => {
+                    searchResult.innerHTML = `<span style="color: #ef4444;">เกิดข้อผิดพลาดในการค้นหา กรุณาลองใหม่อีกครั้ง</span>`;
+                });
+        }
+
+        function uploadRetroSlip() {
+            const fileInput = document.getElementById('retro-slip-file');
+            if (fileInput.files.length === 0) {
+                alert('กรุณาเลือกรูปสลิปการโอนเงินก่อนกดส่งครับ');
+                return;
+            }
+
+            uploadRetroBtn.disabled = true;
+            uploadRetroBtn.innerText = "กำลังอัปโหลดสลิป...";
+
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+                const base64Data = event.target.result;
+                const payload = {
+                    action: "upload_slip",
+                    phone: foundPhoneForSlip,
+                    slipData: base64Data,
+                    slipName: file.name,
+                    slipMimeType: file.type
+                };
+
+                fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                })
+                .then(() => {
+                    alert('✅ ส่งสลิปยืนยันการโอนเงินเรียบร้อยแล้ว!\nทางร้านจะทำการตรวจสอบและอัปเดตสถานะให้เร็วที่สุดครับ');
+                    closeSearchModal();
+                    uploadRetroBtn.disabled = false;
+                    uploadRetroBtn.innerText = "ส่งสลิปยืนยัน";
+                    fetchSeatStatus();
+                })
+                .catch(error => {
+                    alert('เกิดข้อผิดพลาดในการอัปโหลดสลิป กรุณาลองใหม่อีกครั้ง');
+                    uploadRetroBtn.disabled = false;
+                    uploadRetroBtn.innerText = "ส่งสลิปยืนยัน";
+                });
+            };
+            reader.readAsDataURL(file);
         }
     </script>
 </body>
