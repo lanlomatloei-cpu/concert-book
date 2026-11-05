@@ -112,6 +112,46 @@
         }
         .book-btn:hover:not(:disabled) { background-color: #4338ca; }
         .book-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        /* สไตล์หน้าต่างป๊อปอัป (Modal) */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background-color: #1e293b;
+            padding: 25px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 380px;
+            border: 1px solid #475569;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+        }
+        .modal-content h3 { margin-top: 0; color: #818cf8; text-align: center; }
+        .form-group { margin-bottom: 15px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #94a3b8; }
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #475569;
+            background-color: #0f172a;
+            color: white;
+            box-sizing: border-box;
+            font-size: 15px;
+        }
+        .form-group input:focus { outline: none; border-color: #6366f1; }
+        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-submit { background-color: #22c55e; color: white; border: none; padding: 10px; border-radius: 6px; flex: 1; font-weight: bold; cursor: pointer; }
+        .btn-submit:hover { background-color: #16a34a; }
+        .btn-cancel { background-color: #64748b; color: white; border: none; padding: 10px; border-radius: 6px; flex: 1; font-weight: bold; cursor: pointer; }
+        .btn-cancel:hover { background-color: #475569; }
     </style>
 </head>
 <body>
@@ -128,7 +168,30 @@
     <div class="summary-box">
         <p>ที่นั่งที่เลือก: <span id="selected-seats" class="highlight-seats">ยังไม่ได้เลือก</span></p>
         <p>ราคารวม: <span id="total-price" class="highlight-price">0</span> บาท</p>
-        <button id="book-btn" class="book-btn" disabled>ยืนยันการจอง</button>
+        <button id="book-btn" class="book-btn" disabled>จองที่นั่งที่เลือก</button>
+    </div>
+
+    <!-- หน้าต่างป๊อปอัปกรอกข้อมูล -->
+    <div id="booking-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h3>📝 ข้อมูลการจอง</h3>
+            <div class="form-group">
+                <label>ที่นั่ง/โต๊ะที่เลือก:</label>
+                <input type="text" id="modal-seat-id" readonly style="background-color: #334155; color: #facc15; font-weight: bold;">
+            </div>
+            <div class="form-group">
+                <label for="customer-name">ชื่อผู้จอง:</label>
+                <input type="text" id="customer-name" placeholder="ระบุชื่อ-นามสกุล">
+            </div>
+            <div class="form-group">
+                <label for="customer-phone">เบอร์โทรศัพท์:</label>
+                <input type="tel" id="customer-phone" placeholder="ระบุเบอร์โทรศัพท์">
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn-cancel" onclick="closeModal()">ยกเลิก</button>
+                <button type="button" class="btn-submit" onclick="confirmBooking()">ยืนยันการจอง</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -136,6 +199,8 @@
         const selectedSeatsEl = document.getElementById('selected-seats');
         const totalPriceEl = document.getElementById('total-price');
         const bookBtn = document.getElementById('book-btn');
+        const modal = document.getElementById('booking-modal');
+        const modalSeatId = document.getElementById('modal-seat-id');
 
         const rows = 10;
         const cols = 11;
@@ -191,9 +256,28 @@
         }
 
         bookBtn.onclick = () => {
-            alert(`จองสำเร็จ!\nที่นั่ง: ${selected.join(', ')}\nราคารวม: ${(selected.length * 1500).toLocaleString()} บาท`);
-            location.reload();
+            modalSeatId.value = selected.join(', ');
+            modal.style.display = 'flex';
         };
+
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+
+        function confirmBooking() {
+            const name = document.getElementById('customer-name').value.trim();
+            const phone = document.getElementById('customer-phone').value.trim();
+
+            if (!name || !phone) {
+                alert('กรุณากรอกชื่อและเบอร์โทรศัพท์ให้ครบถ้วนครับ');
+                return;
+            }
+
+            alert(`✅ ยืนยันการจองเรียบร้อย!\n\nที่นั่ง: ${selected.join(', ')}\nชื่อผู้จอง: ${name}\nเบอร์โทร: ${phone}\nราคารวม: ${(selected.length * 1500).toLocaleString()} บาท`);
+            
+            closeModal();
+            location.reload();
+        }
     </script>
 </body>
 </html>
