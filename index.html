@@ -257,7 +257,7 @@
         const pricePerTable = 500; 
         let selected = [];
         let foundPhoneForSlip = "";
-        let foundTableForSlip = ""; // เพิ่มตัวเก็บเลขโต๊ะที่จะแนบสลิป
+        let foundTableForSlip = "";
 
         function fetchSeatStatus() {
             fetch(SCRIPT_URL)
@@ -438,7 +438,7 @@
                 .then(data => {
                     if (data.length > 0) {
                         foundPhoneForSlip = phone;
-                        foundTableForSlip = data[0].table.toString(); // เก็บเลขโต๊ะแรกที่เจอมาพ่วงตอนส่งสลิป
+                        foundTableForSlip = data[0].table.toString();
                         let html = `<b>พบข้อมูลการจองของคุณ:</b><br>`;
                         data.forEach(item => {
                             html += `• โต๊ะหมายเลข: <span style="color: #facc15; font-weight: bold;">${item.table}</span> (สถานะ: ${item.status})<br>`;
@@ -473,7 +473,7 @@
                 const payload = {
                     action: "upload_slip",
                     phone: foundPhoneForSlip,
-                    table: foundTableForSlip, // ส่งเลขโต๊ะพ่วงไปหลังบ้านด้วย
+                    table: foundTableForSlip,
                     slipData: base64Data,
                     slipName: file.name,
                     slipMimeType: file.type
@@ -494,7 +494,7 @@
                 .catch(error => {
                     alert('✅ ส่งสลิปยืนยันการโอนเงินเรียบร้อยแล้ว!');
                     closeSearchModal();
-                    uploadRetroBtn.disabled = false;
+                    uploadRetroBtn.disabled, uploadRetroBtn.disabled = false;
                     uploadRetroBtn.innerText = "ส่งสลิปยืนยัน";
                     fetchSeatStatus();
                 });
