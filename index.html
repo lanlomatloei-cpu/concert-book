@@ -138,10 +138,6 @@
             box-sizing: border-box;
             font-size: 14px;
         }
-        .form-group input[type="file"] {
-            background-color: #334155;
-            cursor: pointer;
-        }
         .form-group input:focus { outline: none; border-color: #6366f1; }
         .btn-group { display: flex; gap: 10px; margin-top: 15px; }
         .btn-submit { background-color: #22c55e; color: white; border: none; padding: 10px; border-radius: 6px; flex: 1; font-weight: bold; cursor: pointer; }
@@ -170,10 +166,14 @@
 
     <div id="booking-modal" class="modal-overlay">
         <div class="modal-content">
-            <h3>📝 กรอกข้อมูลและแนบสลิป</h3>
+            <h3>📝 รายละเอียดการจอง</h3>
             <div class="form-group">
                 <label>โต๊ะที่เลือก:</label>
                 <input type="text" id="modal-seat-id" readonly style="background-color: #334155; color: #facc15; font-weight: bold;">
+            </div>
+            <div class="form-group">
+                <label>ยอดมัดจำที่ต้องชำระ:</label>
+                <input type="text" id="modal-seat-price" readonly style="background-color: #334155; color: #4ade80; font-weight: bold;">
             </div>
             <div class="form-group">
                 <label for="customer-name">ชื่อผู้จอง:</label>
@@ -182,10 +182,6 @@
             <div class="form-group">
                 <label for="customer-phone">เบอร์โทรศัพท์:</label>
                 <input type="tel" id="customer-phone" placeholder="ระบุเบอร์โทรศัพท์">
-            </div>
-            <div class="form-group">
-                <label for="customer-slip-file">แนบสลิปการโอนเงิน (เลือกรูปจากเครื่อง):</label>
-                <input type="file" id="customer-slip-file" accept="image/*">
             </div>
             <div class="btn-group">
                 <button type="button" class="btn-cancel" onclick="closeModal()">ยกเลิก</button>
@@ -203,10 +199,12 @@
         const bookBtn = document.getElementById('book-btn');
         const modal = document.getElementById('booking-modal');
         const modalSeatId = document.getElementById('modal-seat-id');
+        const modalSeatPrice = document.getElementById('modal-seat-price');
         const confirmBtn = document.getElementById('confirm-btn');
 
         const totalTables = 40;  
         const colsPerRow = 10;   
+        const pricePerTable = 500; // ราคาต่อโต๊ะ (ปรับเปลี่ยนได้)
         let selected = [];
 
         let rowDiv = document.createElement('div');
@@ -245,8 +243,9 @@
 
         function updateSummary() {
             if (selected.length > 0) {
+                const totalPrice = selected.length * pricePerTable;
                 selectedSeatsEl.innerText = selected.join(', ');
-                totalPriceEl.innerText = (selected.length * 500).toLocaleString(); 
+                totalPriceEl.innerText = totalPrice.toLocaleString(); 
                 bookBtn.disabled = false;
             } else {
                 selectedSeatsEl.innerText = 'ยังไม่ได้เลือก';
@@ -256,7 +255,9 @@
         }
 
         bookBtn.onclick = () => {
+            const totalPrice = selected.length * pricePerTable;
             modalSeatId.value = selected.join(', ');
+            modalSeatPrice.value = totalPrice.toLocaleString() + " บาท";
             modal.style.display = 'flex';
         };
 
@@ -267,7 +268,6 @@
         function confirmBooking() {
             const name = document.getElementById('customer-name').value.trim();
             const phone = document.getElementById('customer-phone').value.trim();
-            const fileInput = document.getElementById('customer-slip-file');
 
             if (!name || !phone) {
                 alert('กรุณากรอกชื่อและเบอร์โทรศัพท์ให้ครบถ้วนครับ');
@@ -275,39 +275,17 @@
             }
 
             confirmBtn.disabled = true;
-            confirmBtn.innerText = "กำลังอัปโหลดสลิป...";
+            confirmBtn.innerText = "กำลังบันทึก...";
 
-            if (fileInput.files.length > 0) {
-                const file = fileInput.files[0];
-                const reader = new FileReader();
-                
-                reader.onload = function(event) {
-                    const base64Data = event.target.result;
-                    sendDataToSheet({
-                        seats: selected,
-                        name: name,
-                        phone: phone,
-                        price: selected.length * 500,
-                        slipData: base64Data,
-                        slipName: file.name,
-                        slipMimeType: file.type
-                    });
-                };
-                reader.readAsDataURL(file);
-            } else {
-                sendDataToSheet({
-                    seats: selected,
-                    name: name,
-                    phone: phone,
-                    price: selected.length * 500,
-                    slipData: null,
-                    slipName: null,
-                    slipMimeType: null
-                });
-            }
-        }
+            const totalPrice = selected.length * pricePerTable;
 
-        function sendDataToSheet(bookingData) {
+            const bookingData = {
+                seats: selected,
+                name: name,
+                phone: phone,
+                price: totalPrice
+            };
+
             fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -315,7 +293,7 @@
                 body: JSON.stringify(bookingData)
             })
             .then(() => {
-                alert(`✅ จองโต๊ะที่ ${selected.join(', ')} สำเร็จ!\n\nระบบได้อัปโหลดสลิปและบันทึกข้อมูลลง Google Sheets เรียบร้อยแล้วครับ`);
+                alert(`✅ บันทึกการจองโต๊ะที่ ${selected.join(', ')} เรียบร้อย!\nยอดมัดจำ: ${totalPrice.toLocaleString()} บาท\n\n⚠️ กรุณาโอนเงินมัดจำและส่งสลิปยืนยันการโอนเงินมาทางเพจ/ไลน์ของร้านภายใน 1 ชั่วโมงครับ`);
                 closeModal();
                 location.reload();
             })
