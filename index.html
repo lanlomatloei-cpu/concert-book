@@ -126,20 +126,24 @@
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
         }
         .modal-content h3 { margin-top: 0; color: #818cf8; text-align: center; }
-        .form-group { margin-bottom: 15px; text-align: left; }
-        .form-group label { display: block; margin-bottom: 5px; font-size: 14px; color: #94a3b8; }
+        .form-group { margin-bottom: 12px; text-align: left; }
+        .form-group label { display: block; margin-bottom: 4px; font-size: 13px; color: #94a3b8; }
         .form-group input {
             width: 100%;
-            padding: 10px;
+            padding: 9px;
             border-radius: 6px;
             border: 1px solid #475569;
             background-color: #0f172a;
             color: white;
             box-sizing: border-box;
-            font-size: 15px;
+            font-size: 14px;
+        }
+        .form-group input[type="file"] {
+            background-color: #334155;
+            cursor: pointer;
         }
         .form-group input:focus { outline: none; border-color: #6366f1; }
-        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-group { display: flex; gap: 10px; margin-top: 15px; }
         .btn-submit { background-color: #22c55e; color: white; border: none; padding: 10px; border-radius: 6px; flex: 1; font-weight: bold; cursor: pointer; }
         .btn-submit:hover { background-color: #16a34a; }
         .btn-submit:disabled { background-color: #475569; cursor: wait; }
@@ -166,7 +170,7 @@
 
     <div id="booking-modal" class="modal-overlay">
         <div class="modal-content">
-            <h3>📝 ข้อมูลการจองโต๊ะ</h3>
+            <h3>📝 กรอกข้อมูลและแนบสลิป</h3>
             <div class="form-group">
                 <label>โต๊ะที่เลือก:</label>
                 <input type="text" id="modal-seat-id" readonly style="background-color: #334155; color: #facc15; font-weight: bold;">
@@ -179,6 +183,10 @@
                 <label for="customer-phone">เบอร์โทรศัพท์:</label>
                 <input type="tel" id="customer-phone" placeholder="ระบุเบอร์โทรศัพท์">
             </div>
+            <div class="form-group">
+                <label for="customer-slip-file">แนบสลิปการโอนเงิน (เลือกรูปจากเครื่อง):</label>
+                <input type="file" id="customer-slip-file" accept="image/*">
+            </div>
             <div class="btn-group">
                 <button type="button" class="btn-cancel" onclick="closeModal()">ยกเลิก</button>
                 <button type="button" id="confirm-btn" class="btn-submit" onclick="confirmBooking()">ยืนยันการจอง</button>
@@ -187,7 +195,6 @@
     </div>
 
     <script>
-        // *** ใส่ URL ของ Google Apps Script ของคุณที่นี่ ***
         const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwE3YYhGd7m0B3aNZXV4OuCf0c6JcX9RyVun961mZ-WW22u3T8xcDTCtux223id_Dw/exec";
 
         const grid = document.getElementById('seating-grid');
@@ -260,6 +267,7 @@
         function confirmBooking() {
             const name = document.getElementById('customer-name').value.trim();
             const phone = document.getElementById('customer-phone').value.trim();
+            const fileInput = document.getElementById('customer-slip-file');
 
             if (!name || !phone) {
                 alert('กรุณากรอกชื่อและเบอร์โทรศัพท์ให้ครบถ้วนครับ');
@@ -267,15 +275,39 @@
             }
 
             confirmBtn.disabled = true;
-            confirmBtn.innerText = "กำลังบันทึก...";
+            confirmBtn.innerText = "กำลังอัปโหลดสลิป...";
 
-            const bookingData = {
-                seats: selected,
-                name: name,
-                phone: phone,
-                price: selected.length * 500
-            };
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = function(event) {
+                    const base64Data = event.target.result;
+                    sendDataToSheet({
+                        seats: selected,
+                        name: name,
+                        phone: phone,
+                        price: selected.length * 500,
+                        slipData: base64Data,
+                        slipName: file.name,
+                        slipMimeType: file.type
+                    });
+                };
+                reader.readAsDataURL(file);
+            } else {
+                sendDataToSheet({
+                    seats: selected,
+                    name: name,
+                    phone: phone,
+                    price: selected.length * 500,
+                    slipData: null,
+                    slipName: null,
+                    slipMimeType: null
+                });
+            }
+        }
 
+        function sendDataToSheet(bookingData) {
             fetch(SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
@@ -283,8 +315,7 @@
                 body: JSON.stringify(bookingData)
             })
             .then(() => {
-                // แจ้งเตือนลูกค้าให้ส่งสลิปภายใน 1 ชั่วโมงหลังจากจองสำเร็จ
-                alert(`✅ บันทึกการจองโต๊ะที่ ${selected.join(', ')} เรียบร้อย!\n\n⚠️ กรุณาโอนเงินมัดจำและแนบสลิปยืนยันภายใน 1 ชั่วโมง\n(สามารถส่งสลิปหลักฐานทาง Inbox เพจร้าน หรือช่องทางที่ร้านกำหนดได้เลยครับ)`);
+                alert(`✅ จองโต๊ะที่ ${selected.join(', ')} สำเร็จ!\n\nระบบได้อัปโหลดสลิปและบันทึกข้อมูลลง Google Sheets เรียบร้อยแล้วครับ`);
                 closeModal();
                 location.reload();
             })
